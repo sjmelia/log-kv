@@ -1,0 +1,9 @@
+[package]
+name = "seekv"
+version = "0.1.0"
+authors = ["Steve Melia <steve.j.melia@gmail.com>"]
+
+[dependencies]
+bincode = "*"
+rustc-serialize = "*"
+uuid = { version = "*", features = ["v4", "rustc-serialize"] }
