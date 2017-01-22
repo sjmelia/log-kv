@@ -2,62 +2,17 @@ extern crate bincode;
 extern crate rustc_serialize;
 extern crate uuid;
 
+mod dberror;
+
 use bincode::SizeLimit;
 use bincode::rustc_serialize::encode_into;
-use bincode::rustc_serialize::EncodingError;
-use std::error;
-use std::fmt;
+use dberror::DbError;
 use std::fs;
 use std::fs::File;
-use std::io;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::path::Path;
 use uuid::Uuid;
-
-// http://jadpole.github.io/rust/many-error-types
-#[derive(Debug)]
-pub enum DbError {
-    Io(io::Error),
-    EncodingError(EncodingError)
-}
-
-impl fmt::Display for DbError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            DbError::Io(ref err) => write!(f, "IO error: {}", err),
-            DbError::EncodingError(ref err) => write!(f, "Encoding error: {}", err),
-        }
-    }
-}
-
-impl error::Error for DbError {
-    fn description(&self) -> &str {
-        match *self {
-            DbError::Io(ref err) => err.description(),
-            DbError::EncodingError(ref err) => err.description()
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            DbError::Io(ref err) => Some(err),
-            DbError::EncodingError(ref err) => Some(err),
-        }
-    }
-}
-
-impl From<io::Error> for DbError {
-    fn from(err: io::Error) -> DbError {
-        DbError::Io(err)
-    }
-}
-
-impl From<EncodingError> for DbError {
-    fn from(err: EncodingError) -> DbError {
-        DbError::EncodingError(err)
-    }
-}
 
 pub struct Db {
     file: File,
