@@ -20,10 +20,10 @@ pub struct Db {
 
 impl Db {
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Db, DbError> {
-        let file = try!(fs::OpenOptions::new()
+        let file = fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(path));
+            .open(path)?;
         let db = Db {
             file: file
         };
@@ -32,8 +32,8 @@ impl Db {
     }
 
     pub fn put(&mut self, id: Uuid) -> Result<(), DbError> {
-        try!(self.file.seek(SeekFrom::End(0)));
-        try!(encode_into(&id, &mut self.file, bincode::SizeLimit::Infinite));
+        self.file.seek(SeekFrom::End(0))?;
+        encode_into(&id, &mut self.file, SizeLimit::Infinite)?;
         Ok(())
     }
 }
@@ -46,6 +46,6 @@ mod tests {
     #[test]
     fn it_works() {
         let mut db = Db::create("file.txt").unwrap();
-        db.put(Uuid::new_v4());
+        db.put(Uuid::new_v4()).unwrap();
     }
 }
