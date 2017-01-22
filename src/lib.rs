@@ -5,8 +5,10 @@ extern crate uuid;
 mod dberror;
 
 use bincode::SizeLimit;
+use bincode::rustc_serialize::encoded_size;
 use bincode::rustc_serialize::encode_into;
 use dberror::DbError;
+use rustc_serialize::Encodable;
 use std::fs;
 use std::fs::File;
 use std::io::Seek;
@@ -31,9 +33,13 @@ impl Db {
         Ok(db)
     }
 
-    pub fn put(&mut self, id: Uuid) -> Result<(), DbError> {
+    pub fn put<T: Encodable>(&mut self, key: Uuid, value: T) -> Result<(), DbError> {
         self.file.seek(SeekFrom::End(0))?;
-        encode_into(&id, &mut self.file, SizeLimit::Infinite)?;
+        let len = encoded_size(&key)
+            + encoded_size(&value);
+        encode_into(&len, &mut self.file, SizeLimit::Infinite)?;
+        encode_into(&key, &mut self.file, SizeLimit::Infinite)?;
+        encode_into(&value, &mut self.file, SizeLimit::Infinite)?;
         Ok(())
     }
 }
@@ -46,6 +52,6 @@ mod tests {
     #[test]
     fn it_works() {
         let mut db = Db::create("file.txt").unwrap();
-        db.put(Uuid::new_v4()).unwrap();
+        db.put(Uuid::new_v4(), "this is a test transmission").unwrap();
     }
 }
