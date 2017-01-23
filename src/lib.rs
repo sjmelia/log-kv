@@ -7,9 +7,11 @@ mod dberror;
 use bincode::SizeLimit;
 use bincode::rustc_serialize::encode_into;
 use bincode::rustc_serialize::decode_from;
+use bincode::rustc_serialize::DecodingError;
 use dberror::DbError;
 use rustc_serialize::Encodable;
 use rustc_serialize::Decodable;
+use std::io::ErrorKind as IoErrorKind;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -26,17 +28,7 @@ impl<T, K> Db<T, K> where
     T: Encodable + Decodable,
     K: Read + Write + Seek {
 
-    pub fn create(mut cursor: K) -> Result<Db<T, K>, DbError> {
-        cursor.seek(SeekFrom::Start(0))?;
-        let mut buf = vec![0; 1];
-        let read = cursor.read(&mut buf)?;
-
-        if read == 0 {
-            // file is empty, initialize file with zero records
-            cursor.seek(SeekFrom::Start(0))?;
-            encode_into(&read, &mut cursor, SizeLimit::Infinite)?;
-        }
-
+    pub fn create(cursor: K) -> Result<Db<T, K>, DbError> {
         let db = Db {
             cursor: cursor,
             _phantom: PhantomData,
@@ -49,19 +41,24 @@ impl<T, K> Db<T, K> where
         self.cursor.seek(SeekFrom::End(0))?;
         encode_into(&key, &mut self.cursor, SizeLimit::Infinite)?;
         encode_into(&value, &mut self.cursor, SizeLimit::Infinite)?;
-        self.cursor.seek(SeekFrom::Start(0))?;
-        let record_count : u64 = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
-        self.cursor.seek(SeekFrom::Start(0))?;
-        encode_into(&(record_count + 1), &mut self.cursor, SizeLimit::Infinite)?;
         Ok(())
     }
 
     pub fn get(&mut self, key: Uuid) -> Result<Option<T>, DbError> {
         self.cursor.seek(SeekFrom::Start(0))?;
-        let record_count : u64 = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
 
-        for _ in 0..record_count {
-            let read_key : Uuid = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
+        while true {
+            let read_key : Uuid = match decode_from(&mut self.cursor, SizeLimit::Infinite) {
+                Ok(read_key) => read_key,
+                Err(DecodingError::IoError(ref e)) if e.kind() == IoErrorKind::UnexpectedEof  => {
+                    println!("Decoding error");
+                    break;
+                },
+                Err(e) => return Err(DbError::from(e))
+            };
+
+
+            //let read_key : Uuid = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
             let value : T = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
 
             if key == read_key {
