@@ -1,6 +1,9 @@
 log_kv
 ======
 
+[![Build Status](https://travis-ci.org/sjmelia/logkv.svg)](https://travis-ci.org/sjmelia/logkv)
+[![crates.io](https://img.shields.io/crates/v/logkv.svg)](https://crates.io/crates/logkv)
+
 A `LogKv` backs a standard Rust `HashMap` with an log of inserts. The log is rebuilt
 on initialisation by iterating over it. The log is serialised using `serde`.
 
