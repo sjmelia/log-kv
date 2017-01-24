@@ -11,6 +11,7 @@ use bincode::rustc_serialize::DecodingError;
 use dberror::DbError;
 use rustc_serialize::Encodable;
 use rustc_serialize::Decodable;
+use std::collections::hash_map::HashMap;
 use std::io::ErrorKind as IoErrorKind;
 use std::io::Read;
 use std::io::Seek;
@@ -21,6 +22,7 @@ use uuid::Uuid;
 
 pub struct Db<T, K> {
     cursor: K,
+    index: HashMap<Uuid, u64>,
     _phantom: PhantomData<T>,
 }
 
@@ -29,44 +31,53 @@ impl<T, K> Db<T, K> where
     K: Read + Write + Seek {
 
     pub fn create(cursor: K) -> Result<Db<T, K>, DbError> {
-        let db = Db {
+        let mut db = Db {
             cursor: cursor,
+            index: HashMap::new(),
             _phantom: PhantomData,
         };
 
-        Ok(db)
-    }
-
-    pub fn put(&mut self, key: Uuid, value: T) -> Result<(), DbError> {
-        self.cursor.seek(SeekFrom::End(0))?;
-        encode_into(&key, &mut self.cursor, SizeLimit::Infinite)?;
-        encode_into(&value, &mut self.cursor, SizeLimit::Infinite)?;
-        Ok(())
-    }
-
-    pub fn get(&mut self, key: Uuid) -> Result<Option<T>, DbError> {
-        self.cursor.seek(SeekFrom::Start(0))?;
-
-        while true {
-            let read_key : Uuid = match decode_from(&mut self.cursor, SizeLimit::Infinite) {
+        db.cursor.seek(SeekFrom::Start(0))?;
+        loop {
+            let read_key : Uuid = match decode_from(&mut db.cursor, SizeLimit::Infinite) {
                 Ok(read_key) => read_key,
                 Err(DecodingError::IoError(ref e)) if e.kind() == IoErrorKind::UnexpectedEof  => {
-                    println!("Decoding error");
                     break;
                 },
                 Err(e) => return Err(DbError::from(e))
             };
 
+            let position = db.cursor.seek(SeekFrom::Current(0))?;
+            db.index.insert(read_key, position);
+            decode_from::<K, T>(&mut db.cursor, SizeLimit::Infinite)?;
 
-            //let read_key : Uuid = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
-            let value : T = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
-
-            if key == read_key {
-                return Ok(Some(value))
-            }
+            //println!("Read {}:{}", read_key, value);
+            /*match decode_from(&mut db.cursor, SizeLimit::Infinite) {
+                Ok(val) =>  println!("Read {}:{}", read_key, val),
+                Err(e) => println!("no err")
+            };*/
         }
 
-        return Ok(None)
+        Ok(db)
+    }
+
+    pub fn put(&mut self, key: Uuid, value: T) -> Result<(), DbError> {
+        encode_into(&key, &mut self.cursor, SizeLimit::Infinite)?;
+        let position = self.cursor.seek(SeekFrom::Current(0))?;
+        self.index.insert(key, position);
+        encode_into(&value, &mut self.cursor, SizeLimit::Infinite)?;
+        Ok(())
+    }
+
+    pub fn get(&mut self, key: Uuid) -> Result<Option<T>, DbError> {
+        return match self.index.get(&key) {
+            Some(position) => {
+                self.cursor.seek(SeekFrom::Start(*position))?;
+                let value = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
+                Ok(Some(value))
+            },
+            None => Ok(None),
+        };
     }
 }
 
