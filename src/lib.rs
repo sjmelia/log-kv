@@ -17,7 +17,6 @@ pub enum LogKvError {
     Io(io::Error),
     EncodingError(EncodingError),
     DecodingError(DecodingError),
-    NotFoundError(String),
 }
 
 impl fmt::Display for LogKvError {
@@ -26,7 +25,6 @@ impl fmt::Display for LogKvError {
             LogKvError::Io(ref err) => write!(f, "IO error: {}", err),
             LogKvError::EncodingError(ref err) => write!(f, "Encoding error: {}", err),
             LogKvError::DecodingError(ref err) => write!(f, "Decoding error: {}", err),
-            LogKvError::NotFoundError(ref err) => write!(f, "Not Found error: {}", err),
         }
     }
 }
@@ -37,7 +35,6 @@ impl error::Error for LogKvError {
             LogKvError::Io(ref err) => err.description(),
             LogKvError::EncodingError(ref err) => err.description(),
             LogKvError::DecodingError(ref err) => err.description(),
-            LogKvError::NotFoundError(ref err) => err,
         }
     }
 
@@ -46,7 +43,6 @@ impl error::Error for LogKvError {
             LogKvError::Io(ref err) => Some(err),
             LogKvError::EncodingError(ref err) => Some(err),
             LogKvError::DecodingError(ref err) => Some(err),
-            LogKvError::NotFoundError(_) => None,
         }
     }
 }
@@ -75,11 +71,11 @@ pub struct LogKv<K, V, T> {
     _phantom: PhantomData<V>,
 }
 
-impl<K, V, T> LogKv<K, V, T> where
-    K: Encodable + Decodable + Eq + Hash,
-    V: Encodable + Decodable,
-    T: Read + Write + Seek {
-
+impl<K, V, T> LogKv<K, V, T>
+    where K: Encodable + Decodable + Eq + Hash,
+          V: Encodable + Decodable,
+          T: Read + Write + Seek
+{
     pub fn create(cursor: T) -> Result<LogKv<K, V, T>, LogKvError> {
         let mut logkv = LogKv {
             cursor: cursor,
@@ -91,10 +87,10 @@ impl<K, V, T> LogKv<K, V, T> where
         loop {
             let key = match decode_from::<T, K>(&mut logkv.cursor, SizeLimit::Infinite) {
                 Ok(key) => key,
-                Err(DecodingError::IoError(ref e)) if e.kind() == IoErrorKind::UnexpectedEof  => {
+                Err(DecodingError::IoError(ref e)) if e.kind() == IoErrorKind::UnexpectedEof => {
                     break;
-                },
-                Err(e) => return Err(LogKvError::from(e))
+                }
+                Err(e) => return Err(LogKvError::from(e)),
             };
 
             let position = logkv.cursor.seek(SeekFrom::Current(0))?;
@@ -119,7 +115,7 @@ impl<K, V, T> LogKv<K, V, T> where
                 self.cursor.seek(SeekFrom::Start(*position))?;
                 let value = decode_from(&mut self.cursor, SizeLimit::Infinite)?;
                 Ok(Some(value))
-            },
+            }
             None => Ok(None),
         };
     }
