@@ -4,6 +4,7 @@ description = "A hashmap backed by a log of inserts. The log is read at initiali
 readme = "README.md"
 keywords = ["key-value", "kv", "disk", "hashmap", "database"]
 categories = ["database", "database-implementations"]
+repository = "http://github.com/sjmelia/logkv"
 license = "MIT"
 version = "0.1.0"
 authors = ["Steve Melia <steve.j.melia@gmail.com>"]
