@@ -10,5 +10,5 @@ version = "0.1.0"
 authors = ["Steve Melia <steve.j.melia@gmail.com>"]
 
 [dependencies]
-bincode = "*"
-serde = "*"
+bincode = "0.6.1"
+serde = "0.8.23"
