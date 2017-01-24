@@ -101,6 +101,22 @@ impl<K, V, T> LogKv<K, V, T>
         Ok(logkv)
     }
 
+    /// Stores a key-value pair, writing to the given Write.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::io::Cursor;
+    /// use seekv::LogKv;
+    ///
+    /// let mut cursor = Cursor::new(Vec::new());
+    /// let mut db = LogKv::create(cursor).unwrap();
+    /// let key = "this is a key";
+    /// let value = "this is a value";
+    /// db.put(String::from(key), String::from(value)).unwrap();
+    /// let retrieved = db.get(String::from(key)).unwrap().expect("No value retrieved");
+    /// assert_eq!(retrieved, value);
+    /// ```
     pub fn put(&mut self, key: K, value: V) -> Result<(), LogKvError> {
         encode_into(&key, &mut self.cursor, SizeLimit::Infinite)?;
         let position = self.cursor.seek(SeekFrom::Current(0))?;
@@ -128,24 +144,7 @@ mod tests {
     use std::string::String;
     use std::fs::remove_file;
     use std::fs;
-
-    #[test]
-    fn put_then_get_returns_expected() {
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open("put_then_get_returns_expected")
-            .unwrap();
-
-        let mut db = LogKv::create(file).unwrap();
-        let key = Uuid::new_v4();
-        let value = "this is a test transmission";
-        db.put(key, String::from(value)).unwrap();
-        let retrieved = db.get(key).unwrap().expect("No value retrieved");
-        remove_file("put_then_get_returns_expected").unwrap();
-        assert_eq!(retrieved, value);
-    }
+    use std::io::Cursor;
 
     #[test]
     fn put_twice_then_get_returns_expected() {
